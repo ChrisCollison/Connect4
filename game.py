@@ -1,92 +1,123 @@
-import random
-
+from collections import namedtuple
 from os import system
+
 from player import Player
 from board import Board
 from question import Question
-from axis_offsets import Axis, Offset
+
+Selection = namedtuple('Selection', ['column', 'is_winner', 'score'])
+
 
 class Connect4:
-  IN_ROW = 4
+    IN_ROW = 4
+    LOOK_AHEAD = 3
 
-  def __init__(self) -> None:
-    self.board = Board()
-    self.active_player = Player.RED
+    def __init__(self) -> None:
+        self.board = Board()
+        self.active_player = Player.USER
+        self.winner = None
 
-  def play(self):
-    print(self.board)
-
-    is_winner = False
-    while not is_winner:
-      if self.active_player is Player.RED:
-        move = self.user_turn()
-        is_winner = self.move_wins(move, Player.RED)
-      else:
-        is_winner = self.computer_turn()
+    def play(self):
+        system('clear')
         print(self.board)
-      
-      if is_winner:
-        if self.active_player is Player.RED:
-          print("Congratulations you won!")
+
+        while self.winner is None and not self.board.is_full:
+            if self.active_player is Player.USER:
+                self.user_turn()
+            else:
+                self.computer_turn()
+
+            system('clear')
+            print(self.board)
+            self.active_player = self.active_player.other_player()
+
+        self.declare_winner()
+
+    def user_turn(self):
+        selection = Question.get_response_from_list(
+            "Select the column to play: ",
+            [str(col) for col in self.board.playable_columns]
+        )
+        selection = int(selection)
+        # before update
+        will_win = self.board.line_score(selection, Player.USER) >= self.IN_ROW
+        self.board.update_with_selection(selection, Player.USER)
+
+        if will_win:
+            self.winner = Player.USER
+
+    def computer_turn(self):
+        best_selection = None
+        columns_scores = []
+        cpu_wins = False
+        player = Player.CPU
+        played = []
+
+        for turn in range(self.LOOK_AHEAD):
+            # Guard board full
+            if self.board.is_full:
+                break
+
+            look_ahead_selection = None
+            turn_column_scores = []
+            other = player.other_player()
+
+            for column in self.board.playable_columns:
+                player_line_score = self.board.line_score(column, player)
+                player_wins = player_line_score >= self.IN_ROW
+                other_wins = self.board.line_score(
+                    column, other) >= self.IN_ROW
+                turn_column_scores.append((player_line_score, column))
+
+                if player_wins or other_wins:
+                    look_ahead_selection = column
+                    if player is Player.CPU and turn == 0:
+                        cpu_wins = True
+                    if player_wins and player is Player.USER:
+                        # set score negative as user will win
+                        columns_scores[-1][1] = -1
+                    if player_wins or (other_wins and turn == 0):
+                        best_selection = column
+                    break
+
+            if turn == 0:
+                columns_scores = [*turn_column_scores]
+
+            if best_selection is None:
+                if look_ahead_selection is None:
+                    look_ahead_selection = sorted(
+                        turn_column_scores, reverse=True)[0][1]
+                played.append(look_ahead_selection)
+                self.board.update_with_selection(look_ahead_selection, player)
+                player = player.other_player()
+            else:
+                break
+
+        # Reverting the simulated moves to return board to original state
+        for selection in played:
+            self.board.update_with_selection(
+                selection, Player.NONE, remove=True)
+
+        if best_selection is None:
+            best_selection = sorted(turn_column_scores, reverse=True)[0][1]
+
+        self.board.update_with_selection(best_selection, Player.CPU)
+        if cpu_wins:
+            self.winner = Player.CPU
+
+    def declare_winner(self):
+        if self.winner is Player.USER:
+            print("Congratulations you won!")
+        elif self.winner is Player.CPU:
+            print("Unlucky you lost!")
         else:
-          print("Unlucky you lost!")
-
-      if self.active_player is Player.RED:
-        self.active_player = Player.YELLOW
-      else:
-        self.active_player = Player.RED
-      
-  def user_turn(self):
-    selection = Question.get_response_from_list(
-      "Select the column to play: ",
-      [str(col + 1) for col in self.board.playable_columns]
-    )
-    return self.board.update(Player.RED, int(selection))
-  
-  def computer_turn(self):
-    move_options = [
-      (self.board.get_top_empty_row(column), column)
-      for column in self.board.playable_columns
-    ]
-
-    # Try to win first  
-    for move in move_options:
-      if self.move_wins(move, Player.YELLOW):
-        self.board[move] = Player.YELLOW
-        return True
-
-    # Next block user winner
-    for move in move_options:
-      if self.move_wins(move, Player.RED):
-        self.board[move] = Player.YELLOW
-        return False
-    
-    #  Otherwise play random col for now until min-max
-    self.board[random.choice(move_options)] = Player.YELLOW
-    return False
-
-  def winning_line(self, player, move, axis: Offset):
-    row, column = move
-    def count_in_direction(dir):
-      count = 0 
-      for n in range(1, 4):
-        offset_row = row + (n * axis.value.row * dir)
-        offset_col = column + (n * axis.value.column * dir)
-        if self.board[offset_row, offset_col] is player:
-          count += 1
-        else:
-          break
-      return count
-
-    return (1 + count_in_direction(1) + count_in_direction(-1)) >= 4
-
-  
-  def move_wins(self, move, player):
-    winning_lines = []
-    for axis in Axis:
-      winning_lines.append(self.winning_line(player, move, axis))
-    return any(winning_lines)
+            print("It's a tie!")
 
 
-game = Connect4()
-game.play()
+def main():
+    game = Connect4()
+    game.play()
+
+
+if __name__ == "__main__":
+    main()
