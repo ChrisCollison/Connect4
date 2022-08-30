@@ -1,5 +1,5 @@
 from collections import namedtuple
-from os import system
+from os import system, name as sys_type
 
 from player import Player
 from board import Board
@@ -18,7 +18,7 @@ class Connect4:
         self.winner = None
 
     def play(self):
-        system('clear')
+        self.clear_terminal()
         print(self.board)
 
         while self.winner is None and not self.board.is_full:
@@ -27,7 +27,7 @@ class Connect4:
             else:
                 self.computer_turn()
 
-            system('clear')
+            self.clear_terminal()
             print(self.board)
             self.active_player = self.active_player.other_player()
 
@@ -113,6 +113,14 @@ class Connect4:
         else:
             print("It's a tie!")
 
+    def clear_terminal(self):
+        # for windows
+        if sys_type == 'nt':
+            system('cls')
+
+        # for mac and linux
+        else:
+            system('clear')
 
 def main():
     game = Connect4()
