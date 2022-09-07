@@ -122,6 +122,7 @@ class Connect4:
         else:
             system('clear')
 
+
 def main():
     game = Connect4()
     game.play()
