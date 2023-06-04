@@ -5,6 +5,8 @@ from player import Player
 from board import Board
 from question import Question
 
+
+
 Selection = namedtuple('Selection', ['column', 'is_winner', 'score'])
 
 
@@ -109,7 +111,7 @@ class Connect4:
         if self.winner is Player.USER:
             print("Congratulations you won!")
         elif self.winner is Player.CPU:
-            print("Unlucky you lost!")
+            print("Unlucky you lost - what a plonker you are!!")
         else:
             print("It's a tie!")
 
